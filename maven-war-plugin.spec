@@ -1,6 +1,6 @@
 Name:           maven-war-plugin
 Version:        2.1.1
-Release:        3
+Release:        5
 Summary:        Maven WAR Plugin
 
 Group:          Development/Java
