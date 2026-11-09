@@ -1,2 +1,4 @@
 sources:
+  maven-war-plugin-3.5.1.tar.gz: c8419f18ef036a98a9fecc89ee727502adefe19d
+removed_sources:
   maven-war-plugin-2.4-source-release.zip: e3636a0f9d92ef183abdea90bf78c440d79dcafc

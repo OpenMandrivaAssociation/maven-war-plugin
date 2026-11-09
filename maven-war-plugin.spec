@@ -1,124 +1,125 @@
-%{?_javapackages_macros:%_javapackages_macros}
-Name:           maven-war-plugin
-Version:        2.4
-Release:        1.0%{?dist}
-Summary:        Maven WAR Plugin
+Name:		maven-war-plugin
+Version:	3.5.1
+Release:	1
+Summary:	Builds a web application archive from a Maven project
+Group:		Development/Java
+License:	Apache-2.0
+URL:		https://maven.apache.org/plugins/maven-war-plugin/
+Source0:	https://github.com/apache/maven-war-plugin/archive/refs/tags/maven-war-plugin-%{version}.tar.gz#/maven-war-plugin-%{version}.tar.gz
+BuildArch:	noarch
+BuildRequires:	python
+BuildRequires:	maven
+BuildRequires:	maven-components >= 3.10.0
+BuildRequires:	java-current-devel
+# Generates META-INF/maven/plugin.xml. The separate annotations package
+# conflicts with maven-components on the same index file.
+BuildRequires:	maven-plugin-tools >= 3.16.0
+BuildRequires:	mvn(org.apache.maven.plugins:maven-plugin-plugin)
+BuildRequires:	mvn(org.apache.maven:maven-archiver)
+BuildRequires:	maven-archiver >= 3.6.6
+Requires:	maven-archiver >= 3.6.6
+BuildRequires:	mvn(org.apache.maven.shared:maven-filtering)
+BuildRequires:	maven-filtering >= 3.5.1
+Requires:	maven-filtering >= 3.5.1
+BuildRequires:	mvn(org.apache.maven.shared:maven-mapping)
+BuildRequires:	maven-mapping >= 3.0.0
+Requires:	maven-mapping >= 3.0.0
+BuildRequires:	mvn(org.apache.maven.shared:maven-shared-utils)
+BuildRequires:	maven-shared-utils >= 3.5.0
+Requires:	maven-shared-utils >= 3.5.0
+BuildRequires:	mvn(commons-io:commons-io)
+BuildRequires:	apache-commons-io >= 1:2.22.0
+Requires:	apache-commons-io >= 1:2.22.0
+BuildRequires:	mvn(org.codehaus.plexus:plexus-archiver)
+BuildRequires:	plexus-archiver >= 4.15.0
+Requires:	plexus-archiver >= 4.15.0
+BuildRequires:	mvn(org.codehaus.plexus:plexus-interpolation)
+BuildRequires:	plexus-interpolation >= 1.30.0
+Requires:	plexus-interpolation >= 1.30.0
+BuildRequires:	mvn(org.codehaus.plexus:plexus-utils)
+BuildRequires:	plexus-utils >= 3.6.2
+Requires:	plexus-utils >= 3.6.2
+BuildRequires:	mvn(org.apache.maven:maven-plugin-api)
+BuildRequires:	mvn(org.apache.maven:maven-core)
+BuildRequires:	mvn(org.apache.maven:maven-artifact)
+BuildRequires:	mvn(org.apache.maven:maven-model)
+BuildRequires:	mvn(javax.inject:javax.inject)
+# javax.inject and jakarta-inject both provide this coordinate.
+BuildRequires:	javax.inject >= 1-2
+Requires:	javax.inject >= 1-2
+BuildRequires:	mvn(org.apache.maven.plugin-tools:maven-plugin-annotations)
+BuildSystem:	maven
+BuildOption(install):	--file-name %{name}
 
-
-License:        ASL 2.0
-URL:            https://maven.apache.org/plugins/maven-war-plugin/
-Source0:        http://repo2.maven.org/maven2/org/apache/maven/plugins/%{name}/%{version}/%{name}-%{version}-source-release.zip
-
-BuildArch: noarch
-
-# Basic stuff
-BuildRequires: jpackage-utils
-BuildRequires: java-devel >= 1:1.6.0
-# Maven and its dependencies
-BuildRequires: maven-local
-BuildRequires: maven-plugin-plugin
-BuildRequires: maven-javadoc-plugin
-BuildRequires: maven-jar-plugin
-BuildRequires: maven-surefire-provider-junit
-BuildRequires: maven-surefire-plugin
-BuildRequires: maven-plugin-cobertura
-BuildRequires: maven-shared-filtering
-BuildRequires: maven-enforcer-plugin
-BuildRequires: maven-compiler-plugin
-BuildRequires: maven-install-plugin
-BuildRequires: maven-resources-plugin
-BuildRequires: maven-changes-plugin
-# Others
-BuildRequires: xstream
-
-Requires: java
-Requires: maven
-Requires: xstream
-Requires: jpackage-utils
-
-Provides:       maven2-plugin-war = 0:%{version}-%{release}
-Obsoletes:      maven2-plugin-war <= 0:2.0.8
+Obsoletes:	maven2-plugin-war <= 0:2.0.8
+Provides:	maven2-plugin-war = %{EVRD}
+Obsoletes:	maven-war-plugin-javadoc < %{EVRD}
 
 %description
-Builds a Web Application Archive (WAR) file from the project output and its 
-dependencies.
-
-%package javadoc
-
-Summary:        Javadoc for %{name}
-Requires:       jpackage-utils
-
-%description javadoc
-API documentation for %{name}.
+Assembles a WAR from classes, web resources, and dependency jars.
+3.5.1 is the current stable release. Overlays, filtering, and the
+archive layout come from the system jars. Tests need JUnit Jupiter,
+so they are not run.
 
 %prep
-%setup -q 
+%autosetup -n maven-war-plugin-maven-war-plugin-%{version}
+rm -rf src/test src/it .github Jenkinsfile
+python - <<'PY'
+import xml.etree.ElementTree as ET
 
-%build
-%mvn_build -f
+NS = "http://maven.apache.org/POM/4.0.0"
+ET.register_namespace("", NS)
 
-%install
-%mvn_install
+def tag(name):
+    return "{" + NS + "}" + name
+
+def add(parent, name, text):
+    node = ET.SubElement(parent, tag(name))
+    node.text = text
+    return node
+
+root = ET.Element(tag("project"))
+add(root, "modelVersion", "4.0.0")
+add(root, "groupId", "org.apache.maven.plugins")
+add(root, "artifactId", "maven-war-plugin")
+add(root, "version", "%{version}")
+add(root, "packaging", "maven-plugin")
+add(root, "name", "Apache Maven WAR Plugin")
+props = ET.SubElement(root, tag("properties"))
+add(props, "maven.compiler.release", "8")
+add(props, "project.build.sourceEncoding", "UTF-8")
+deps = ET.SubElement(root, tag("dependencies"))
+items = (
+    ("org.apache.maven", "maven-archiver", "3.6.6", None),
+    ("org.apache.maven.shared", "maven-filtering", "3.5.1", None),
+    ("org.apache.maven.shared", "maven-mapping", "3.0.0", None),
+    ("org.apache.maven.shared", "maven-shared-utils", "3.5.0", None),
+    ("commons-io", "commons-io", "2.22.0", None),
+    ("org.codehaus.plexus", "plexus-archiver", "4.15.0", None),
+    ("org.codehaus.plexus", "plexus-interpolation", "1.30.0", None),
+    ("org.codehaus.plexus", "plexus-utils", "3.6.2", None),
+    ("org.apache.maven", "maven-plugin-api", "3.10.0", "provided"),
+    ("org.apache.maven", "maven-core", "3.10.0", "provided"),
+    ("org.apache.maven", "maven-artifact", "3.10.0", "provided"),
+    ("org.apache.maven", "maven-model", "3.10.0", "provided"),
+    ("javax.inject", "javax.inject", "1", "provided"),
+    ("org.apache.maven.plugin-tools", "maven-plugin-annotations", "3.15.2", "provided"),
+)
+for group, artifact, version, scope in items:
+    dep = ET.SubElement(deps, tag("dependency"))
+    add(dep, "groupId", group)
+    add(dep, "artifactId", artifact)
+    add(dep, "version", version)
+    if scope:
+        add(dep, "scope", scope)
+build = ET.SubElement(root, tag("build"))
+plugins = ET.SubElement(build, tag("plugins"))
+plugin = ET.SubElement(plugins, tag("plugin"))
+add(plugin, "groupId", "org.apache.maven.plugins")
+add(plugin, "artifactId", "maven-plugin-plugin")
+add(plugin, "version", "3.16.0")
+ET.ElementTree(root).write("pom.xml", encoding="utf-8", xml_declaration=True)
+PY
 
 %files -f .mfiles
-%doc LICENSE NOTICE
-
-%files javadoc -f .mfiles-javadoc
-%doc LICENSE NOTICE
-
-%changelog
-* Mon Aug 12 2013 Alexander Kurtakov <akurtako@redhat.com> 2.4-1
-- Update to latest upstream and adopt to latest quidelines.
-
-* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.3-7
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
-
-* Mon Apr 29 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.3-6
-- Remove unneeded BR: maven-idea-plugin
-
-* Thu Feb 28 2013 Weinan Li <weli@redhat.com> 2.3-5
-- Remove unnecessary maven-doxia dependencies
-
-* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.3-4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
-
-* Wed Feb 06 2013 Java SIG <java-devel@lists.fedoraproject.org> - 2.3-3
-- Update for https://fedoraproject.org/wiki/Fedora_19_Maven_Rebuild
-- Replace maven BuildRequires with maven-local
-
-* Fri Nov 23 2012 Weinan Li <weli@redhat.com> 2.3-2
-- Install license files
-
-* Tue Oct 23 2012 Alexander Kurtakov <akurtako@redhat.com> 2.3-1
-- Update to latest upstream release.
-
-* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.2-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
-
-* Mon Mar 5 2012 Alexander Kurtakov <akurtako@redhat.com> 2.2-1
-- Update to latest release.
-
-* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.1-5
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
-
-* Fri Jun 17 2011 Alexander Kurtakov <akurtako@redhat.com> 2.1.1-4
-- Do not depend on maven2.
-
-* Tue Feb 08 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.1-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
-
-* Wed Jan 26 2011 Alexander Kurtakov <akurtako@redhat.com> 2.1.1-2
-- Build with maven 3.
-- Drop depmap and other non needed parts.
-
-* Sat Nov 20 2010 Alexander Kurtakov <akurtako@redhat.com> 2.1.1-1
-- Update to new version.
-
-* Mon Jun 14 2010 Alexander Kurtakov <akurtako@redhat.com> 2.1-0.3.b1
-- Fix unversioned symlink.
-
-* Mon Jun 7 2010 Weinan Li <weli@redhat.com> - 2.1-0.2.b1
-- Fix incoherent version in changelog
-
-* Thu Jun 3 2010 Weinan Li <weli@redhat.com> - 2.1-0.1.b1
-- Initial Package
+%doc LICENSE README.md
